@@ -3,6 +3,13 @@
 #include <algorithm>
 #include <string>
 
+#ifdef max
+#undef max
+#endif
+#ifdef min
+#undef min
+#endif
+
 namespace otuber::preview {
 namespace {
 
@@ -92,7 +99,7 @@ void draw_preview(HDC dc, const RECT &client, const Runtime &runtime)
         const int cy = (target.top + target.bottom) / 2;
         const int radius = 95;
         Ellipse(dc, cx - radius, cy - radius, cx + radius, cy + radius);
-        const int eye_h = std::max(2, static_cast<int>(18.0f * m.eye_left_open));
+        const int eye_h = (std::max)(2, static_cast<int>(18.0f * m.eye_left_open));
         Ellipse(dc, cx - 46, cy - 30 - eye_h / 2, cx - 30, cy - 30 + eye_h / 2);
         Ellipse(dc, cx + 30, cy - 30 - eye_h / 2, cx + 46, cy - 30 + eye_h / 2);
         const int mouth_h = 4 + static_cast<int>(42.0f * std::clamp(m.mouth_open, 0.0f, 1.0f));

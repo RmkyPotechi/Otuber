@@ -1,0 +1,31 @@
+name: Windows Preview
+
+on:
+  push:
+    paths:
+      - 'apps/preview/windows/**'
+      - 'src/**'
+      - '.github/workflows/windows-preview.yml'
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure
+        run: cmake -S apps/preview/windows -B build/windows
+
+      - name: Build
+        run: cmake --build build/windows --config Release
+
+      - name: Package
+        shell: pwsh
+        run: ./apps/preview/windows/package.ps1
+
+      - name: Upload Windows preview
+        uses: actions/upload-artifact@v4
+        with:
+          name: Otuber-Windows-Preview
+          path: dist/Otuber-Windows-Preview.zip

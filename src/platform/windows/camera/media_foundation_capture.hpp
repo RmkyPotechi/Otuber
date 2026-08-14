@@ -31,6 +31,7 @@ private:
     bool initialized_ = false;
     bool opened_ = false;
 #ifdef _WIN32
+    bool com_initialized_ = false;
     IMFSourceReader *reader_ = nullptr;
     IMFMediaSource *source_ = nullptr;
 #endif

@@ -25,6 +25,7 @@ public:
     bool open(int device_index = 0);
     void shutdown();
     bool read(CapturedFrame &frame);
+    bool is_open() const { return opened_; }
 
 private:
     bool initialized_ = false;

@@ -20,6 +20,7 @@ public:
     const otuber::windows::camera::CapturedFrame &camera_frame() const { return frame_; }
     const AvatarImage &avatar_image() const { return avatar_; }
     bool camera_open() const { return camera_.is_open(); }
+    const std::string &camera_error() const { return camera_.last_error(); }
 
     bool load_avatar(const std::wstring &path) { return load_png_wic(path, avatar_); }
 

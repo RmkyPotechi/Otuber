@@ -1,5 +1,7 @@
 #include "deformer_graph.hpp"
 
+#include <utility>
+
 namespace otuber::mesh {
 
 void DeformerGraph::add(DeformerNode node)
@@ -10,6 +12,28 @@ void DeformerGraph::add(DeformerNode node)
 void DeformerGraph::clear()
 {
     nodes_.clear();
+}
+
+bool DeformerGraph::set_weight(const std::string &id, float weight)
+{
+    for (auto &node : nodes_) {
+        if (node.id == id) {
+            node.weight = weight;
+            return true;
+        }
+    }
+    return false;
+}
+
+bool DeformerGraph::set_transform(const std::string &id, RegionTransform transform)
+{
+    for (auto &node : nodes_) {
+        if (node.id == id) {
+            node.transform = transform;
+            return true;
+        }
+    }
+    return false;
 }
 
 Mesh DeformerGraph::evaluate(const Mesh &source) const

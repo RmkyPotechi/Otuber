@@ -16,19 +16,25 @@ bool Runtime::start(int camera_index)
 
 #ifdef OTUBER_HAS_OPENCV
     auto tracker = std::make_unique<otuber::windows::tracking::OpenCvFaceTracker>(
-        L"haarcascade_frontalface_default.xml");
+        "haarcascade_frontalface_default.xml");
     if (tracker->ready())
         tracker_ = std::move(tracker);
 #endif
 
     state_.camera_enabled = true;
+#ifdef OTUBER_HAS_OPENCV
     state_.tracking_enabled = tracker_ != nullptr;
+#else
+    state_.tracking_enabled = false;
+#endif
     return true;
 }
 
 void Runtime::stop()
 {
+#ifdef OTUBER_HAS_OPENCV
     tracker_.reset();
+#endif
     camera_.shutdown();
     frame_ = {};
     state_.camera_enabled = false;

@@ -26,16 +26,23 @@ bool MediaFoundationCapture::initialize()
     if (initialized_)
         return true;
 
-    HRESULT hr = CoInitializeEx(nullptr, COINIT_MULTITHREADED);
-    const bool com_ok = SUCCEEDED(hr) || hr == RPC_E_CHANGED_MODE;
-    if (!com_ok)
+    const HRESULT com_hr = CoInitializeEx(nullptr, COINIT_MULTITHREADED);
+    if (FAILED(com_hr) && com_hr != RPC_E_CHANGED_MODE)
         return false;
 
-    hr = MFStartup(MF_VERSION, MFSTARTUP_FULL);
-    initialized_ = SUCCEEDED(hr);
-    if (!initialized_ && hr == S_OK && com_ok)
-        CoUninitialize();
-    return initialized_;
+    com_initialized_ = SUCCEEDED(com_hr);
+
+    const HRESULT mf_hr = MFStartup(MF_VERSION, MFSTARTUP_FULL);
+    if (FAILED(mf_hr)) {
+        if (com_initialized_) {
+            CoUninitialize();
+            com_initialized_ = false;
+        }
+        return false;
+    }
+
+    initialized_ = true;
+    return true;
 #else
     return false;
 #endif
@@ -44,16 +51,21 @@ bool MediaFoundationCapture::initialize()
 bool MediaFoundationCapture::open(int device_index)
 {
 #ifdef _WIN32
-    if (!initialized_ || device_index < 0)
+    if (device_index < 0)
         return false;
 
-    shutdown();
-    // shutdown() also tears down MF, so restore the initialized state.
-    if (!initialize())
+    if (!initialized_ && !initialize())
+        return false;
+
+    if (opened_)
+        shutdown();
+
+    // shutdown() tears down Media Foundation, so restore it when reopening.
+    if (!initialized_ && !initialize())
         return false;
 
     ComPtr<IMFAttributes> attributes;
-    if (FAILED(MFCreateAttributes(&attributes, 1)))
+    if (FAILED(MFCreateAttributes(&attributes, 2)))
         return false;
 
     if (FAILED(attributes->SetGUID(MF_DEVSOURCE_ATTRIBUTE_SOURCE_TYPE,
@@ -63,9 +75,13 @@ bool MediaFoundationCapture::open(int device_index)
     IMFActivate **devices = nullptr;
     UINT32 count = 0;
     HRESULT hr = MFEnumDeviceSources(attributes.Get(), &devices, &count);
-    if (FAILED(hr) || static_cast<UINT32>(device_index) >= count) {
-        if (devices)
-            CoTaskMemFree(devices);
+    if (FAILED(hr))
+        return false;
+
+    if (static_cast<UINT32>(device_index) >= count) {
+        for (UINT32 i = 0; i < count; ++i)
+            devices[i]->Release();
+        CoTaskMemFree(devices);
         return false;
     }
 
@@ -78,8 +94,10 @@ bool MediaFoundationCapture::open(int device_index)
         return false;
 
     ComPtr<IMFAttributes> reader_attributes;
-    if (FAILED(MFCreateAttributes(&reader_attributes, 1)))
+    if (FAILED(MFCreateAttributes(&reader_attributes, 2)))
         return false;
+    // Keep SourceReader conversion enabled: webcams commonly expose YUY2/NV12
+    // rather than RGB32 natively.
     reader_attributes->SetUINT32(MF_READWRITE_DISABLE_CONVERTERS, FALSE);
 
     ComPtr<IMFSourceReader> reader;
@@ -87,28 +105,32 @@ bool MediaFoundationCapture::open(int device_index)
     if (FAILED(hr))
         return false;
 
-    ComPtr<IMFMediaType> type;
-    if (FAILED(MFCreateMediaType(&type)))
+    // Do not force a particular resolution. Ask the SourceReader for RGB32 and
+    // let it select a supported native camera mode. Forcing 640x480 caused many
+    // webcams to reject SetCurrentMediaType even though they were usable.
+    ComPtr<IMFMediaType> requested_type;
+    if (FAILED(MFCreateMediaType(&requested_type)))
         return false;
-    type->SetGUID(MF_MT_MAJOR_TYPE, MFMediaType_Video);
-    type->SetGUID(MF_MT_SUBTYPE, MFVideoFormat_RGB32);
-    type->SetUINT32(MF_MT_INTERLACE_MODE, MFVideoInterlace_Progressive);
+    requested_type->SetGUID(MF_MT_MAJOR_TYPE, MFMediaType_Video);
+    requested_type->SetGUID(MF_MT_SUBTYPE, MFVideoFormat_RGB32);
 
-    // Request a modest default capture size. The source reader may choose a
-    // compatible native mode when this exact size is unavailable.
-    MFSetAttributeSize(type.Get(), MF_MT_FRAME_SIZE, 640, 480);
     hr = reader->SetCurrentMediaType(MF_SOURCE_READER_FIRST_VIDEO_STREAM,
-                                      nullptr, type.Get());
-    if (FAILED(hr))
+                                     nullptr, requested_type.Get());
+    if (FAILED(hr)) {
+        // If RGB32 conversion is unavailable, select the camera's native type
+        // and still expose a clear failure rather than producing bad pixels.
         return false;
+    }
 
     ComPtr<IMFMediaType> current_type;
     if (FAILED(reader->GetCurrentMediaType(MF_SOURCE_READER_FIRST_VIDEO_STREAM,
                                            &current_type)))
         return false;
 
-    UINT32 width = 0, height = 0;
-    if (FAILED(MFGetAttributeSize(current_type.Get(), MF_MT_FRAME_SIZE, &width, &height)))
+    UINT32 width = 0;
+    UINT32 height = 0;
+    if (FAILED(MFGetAttributeSize(current_type.Get(), MF_MT_FRAME_SIZE,
+                                  &width, &height)) || width == 0 || height == 0)
         return false;
 
     reader_ = reader.Detach();
@@ -137,10 +159,14 @@ void MediaFoundationCapture::shutdown()
         source_ = nullptr;
     }
     width_ = height_ = 0;
+
     if (initialized_) {
         MFShutdown();
         initialized_ = false;
+    }
+    if (com_initialized_) {
         CoUninitialize();
+        com_initialized_ = false;
     }
 #else
     opened_ = false;
@@ -169,7 +195,8 @@ bool MediaFoundationCapture::read(CapturedFrame &frame)
         return false;
 
     BYTE *data = nullptr;
-    DWORD max_length = 0, current_length = 0;
+    DWORD max_length = 0;
+    DWORD current_length = 0;
     if (FAILED(buffer->Lock(&data, &max_length, &current_length)) || !data)
         return false;
 
@@ -184,7 +211,7 @@ bool MediaFoundationCapture::read(CapturedFrame &frame)
     frame.height = height_;
     frame.rgba.resize(expected);
 
-    // RGB32 is stored as B,G,R,X on Windows. Convert to RGBA for the core.
+    // RGB32 is B,G,R,X on Windows. Convert to RGBA for the core.
     for (std::size_t i = 0; i < expected; i += 4) {
         frame.rgba[i + 0] = data[i + 2];
         frame.rgba[i + 1] = data[i + 1];

@@ -28,11 +28,8 @@ void MediaFoundationCapture::set_error(const char *message)
 #ifdef _WIN32
 void MediaFoundationCapture::set_hresult_error(const char *operation, long hr)
 {
-    char buffer[96]{};
-    std::snprintf(buffer, sizeof(buffer), "%s (HRESULT 0x%08lX)",
-                  operation ? operation : "camera operation failed",
-                  static_cast<unsigned long>(hr));
-    last_error_ = buffer;
+    last_error_ = std::string(operation ? operation : "camera operation failed") +
+                  " (HRESULT " + std::to_string(static_cast<unsigned long>(hr)) + ")";
 }
 #endif
 
@@ -133,8 +130,6 @@ bool MediaFoundationCapture::open(int device_index)
         return false;
     }
 
-    // Ask SourceReader to perform video processing/conversion. This is
-    // important for webcams that expose YUY2/NV12 instead of RGB32.
     reader_attributes->SetUINT32(MF_READWRITE_DISABLE_CONVERTERS, FALSE);
     reader_attributes->SetUINT32(MF_SOURCE_READER_ENABLE_VIDEO_PROCESSING, TRUE);
 
@@ -271,7 +266,6 @@ bool MediaFoundationCapture::read(CapturedFrame &frame)
     frame.height = height_;
     frame.rgba.resize(expected);
 
-    // RGB32 is B,G,R,X on Windows. Convert to RGBA for the core.
     for (std::size_t i = 0; i < expected; i += 4) {
         frame.rgba[i + 0] = data[i + 2];
         frame.rgba[i + 1] = data[i + 1];

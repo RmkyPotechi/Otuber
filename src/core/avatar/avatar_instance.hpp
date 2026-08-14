@@ -1,6 +1,6 @@
 #pragma once
 
-#include "avatar_model.hpp"
+#include "avatar_format.hpp"
 #include "core/mesh/deformer_graph.hpp"
 #include "core/texture/texture.hpp"
 

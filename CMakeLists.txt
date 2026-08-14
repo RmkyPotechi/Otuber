@@ -48,7 +48,10 @@ if(OTUBER_ENABLE_OPENCV_TRACKER)
             src/platform/windows/tracking/opencv_face_tracker.cpp
             src/platform/windows/tracking/opencv_face_tracker.hpp
         )
-        target_include_directories(otuber_opencv_tracker PRIVATE ${OpenCV_INCLUDE_DIRS})
+        target_include_directories(otuber_opencv_tracker PRIVATE
+            ${CMAKE_CURRENT_SOURCE_DIR}/src
+            ${OpenCV_INCLUDE_DIRS}
+        )
         target_link_libraries(otuber_opencv_tracker PRIVATE otuber_core ${OpenCV_LIBS})
         target_compile_definitions(otuber_opencv_tracker PRIVATE OTUBER_HAS_OPENCV_TRACKER=1)
     else()

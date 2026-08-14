@@ -1,0 +1,28 @@
+#pragma once
+
+#include "core/motion/camera_tracker.hpp"
+
+#include <cstdint>
+#include <vector>
+
+namespace otuber::windows::camera {
+
+struct CapturedFrame {
+    int width = 0;
+    int height = 0;
+    std::vector<std::uint8_t> rgba;
+};
+
+class MediaFoundationCapture {
+public:
+    bool initialize();
+    bool open(int device_index = 0);
+    void shutdown();
+    bool read(CapturedFrame &frame);
+
+private:
+    bool initialized_ = false;
+    bool opened_ = false;
+};
+
+} // namespace otuber::windows::camera

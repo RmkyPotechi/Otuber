@@ -77,6 +77,12 @@ void draw_preview(HDC dc, const RECT &client, const Runtime &runtime)
     text(dc, 150, 42, state.tracking_enabled ? L"Tracking: ON" : L"Tracking: OFF");
     text(dc, 300, 42, L"Space: camera   Ctrl+O: load PNG");
 
+    if (!state.camera_enabled && !runtime.camera_error().empty()) {
+        const std::string &error = runtime.camera_error();
+        std::wstring wide(error.begin(), error.end());
+        text(dc, 24, 60, L"Camera error: " + wide);
+    }
+
     RECT camera{24, 78, 500, client.bottom - 24};
     panel(dc, camera);
     text(dc, camera.left + 12, camera.top + 12, L"Camera");

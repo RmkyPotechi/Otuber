@@ -8,14 +8,25 @@ on:
       - '.github/workflows/windows-preview.yml'
   workflow_dispatch:
 
+env:
+  VCPKG_ROOT: ${{ github.workspace }}\vcpkg
+
 jobs:
   build:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
 
+      - name: Install OpenCV
+        shell: pwsh
+        run: |
+          git clone --depth 1 https://github.com/microsoft/vcpkg.git "$env:VCPKG_ROOT"
+          & "$env:VCPKG_ROOT\bootstrap-vcpkg.bat"
+          & "$env:VCPKG_ROOT\vcpkg.exe" install opencv4:x64-windows
+
       - name: Configure
-        run: cmake -S apps/preview/windows -B build/windows
+        shell: pwsh
+        run: cmake -S apps/preview/windows -B build/windows -DCMAKE_TOOLCHAIN_FILE="$env:VCPKG_ROOT\scripts\buildsystems\vcpkg.cmake" -DVCPKG_TARGET_TRIPLET=x64-windows
 
       - name: Build
         run: cmake --build build/windows --config Release

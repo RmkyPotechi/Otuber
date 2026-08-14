@@ -70,7 +70,7 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int show_command)
     wc.lpfnWndProc = window_proc;
     wc.hInstance = instance;
     wc.lpszClassName = name;
-    wc.hCursor = LoadCursorW(nullptr, IDC_ARROW);
+    wc.hCursor = LoadCursorW(nullptr, MAKEINTRESOURCEW(IDC_ARROW));
     wc.hbrBackground = static_cast<HBRUSH>(GetStockObject(WHITE_BRUSH));
     if (!RegisterClassW(&wc)) return 1;
 

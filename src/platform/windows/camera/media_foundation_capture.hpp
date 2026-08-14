@@ -5,6 +5,11 @@
 #include <cstdint>
 #include <vector>
 
+#ifdef _WIN32
+struct IMFSourceReader;
+struct IMFMediaSource;
+#endif
+
 namespace otuber::windows::camera {
 
 struct CapturedFrame {
@@ -15,6 +20,7 @@ struct CapturedFrame {
 
 class MediaFoundationCapture {
 public:
+    ~MediaFoundationCapture();
     bool initialize();
     bool open(int device_index = 0);
     void shutdown();
@@ -23,6 +29,12 @@ public:
 private:
     bool initialized_ = false;
     bool opened_ = false;
+#ifdef _WIN32
+    IMFSourceReader *reader_ = nullptr;
+    IMFMediaSource *source_ = nullptr;
+#endif
+    int width_ = 0;
+    int height_ = 0;
 };
 
 } // namespace otuber::windows::camera

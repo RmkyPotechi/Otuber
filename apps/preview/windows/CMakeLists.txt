@@ -14,7 +14,8 @@ add_executable(otuber_windows_preview WIN32
 
 target_include_directories(otuber_windows_preview PRIVATE ../../../src .)
 target_link_libraries(otuber_windows_preview PRIVATE
-    user32 gdi32 comdlg32 ole32 mfplat mfreadwrite mfuuid windowscodecs)
+    user32 gdi32 comdlg32 ole32
+    mf mfplat mfreadwrite mfuuid windowscodecs)
 
 if(OpenCV_FOUND)
     target_sources(otuber_windows_preview PRIVATE
@@ -36,5 +37,5 @@ if(OpenCV_FOUND)
     )
     target_include_directories(otuber_tracking_preview PRIVATE ../../../src ${OpenCV_INCLUDE_DIRS})
     target_link_libraries(otuber_tracking_preview PRIVATE
-        user32 gdi32 ole32 mfplat mfreadwrite mfuuid ${OpenCV_LIBS})
+        user32 gdi32 ole32 mf mfplat mfreadwrite mfuuid ${OpenCV_LIBS})
 endif()
